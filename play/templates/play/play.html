@@ -1,0 +1,18 @@
+{% extends 'play/base.html' %}
+{% block title %}Игра{% endblock %}
+{% block main %}
+<h3>Добро пожаловать на битву экстрасенсов!</h3>
+<p>Загадайте двузначное число. Его постараются угадать эксттрасены.</p>
+<p></p>
+<form action="{% url 'play:answer' %}" method="post">
+    {% csrf_token %}
+    <label for="answer">Подтвердите, что загадали число</label>
+    <input type="submit" value="OK" />
+</form>
+
+<p></p>
+<p>Текущие результаты экстрасенсов:</p>
+<p>Василий  {{ vasily.score }}      Он угадал следующие чиса {{ vasily.numbers }}</p>
+<p>Петр  {{ petr.score }}     Он угадал следующие чиса {{ petr.numbers }}</p>
+<p>Вы выбирали следующие числа {{ all_numbers }}</p>
+{% endblock %}
