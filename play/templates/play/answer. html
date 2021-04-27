@@ -1,0 +1,26 @@
+{% extends 'play/base.html' %}
+{% block title %}Догадки{% endblock %}
+{% block main %}
+<p>Экстрасенсы предположили</p>
+<table border="1">
+  <tr>
+    <td>Василий</td>
+    <td>Петр</td>
+  </tr>
+  <tr>
+    <td> {{ vasily.answer }}</td>
+    <td> {{ petr.answer }}</td>
+  </tr>
+</table>
+<p></p>
+<form action="{% url 'play:index' %}" method="post">
+    {% csrf_token %}
+    {{ form }}
+    <input type="submit" value="OK" />
+</form>
+<p></p>
+<p>Текущие результаты экстрасенсов:</p>
+<p>Василий  {{ vasily.score }}    Он выбрал следующие чиса {{ vasily.numbers }}</p>
+<p>Петр  {{ petr.score }}   Он выбрал следующие чиса {{ petr.numbers }}</p>
+<p>Вы выбирали следующие числа {{ player.all_numbers }}</p>
+{% endblock %}
