@@ -3,8 +3,7 @@ from . import views
 
 app_name = 'play'
 urlpatterns = [
-    path('play/', views.index, name='index'),
-    path('play/answer/', views.answer, name='answer'),
-    path('play/test/', views.test, name='test')
+    path('', views.Index.as_view(), name='index'),
+    path('answer/', views.Answer.as_view(), name='answer'),
 
 ]

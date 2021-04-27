@@ -1,133 +1,104 @@
-from django.shortcuts import render
-from django.http import HttpResponseRedirect
+from django.views import generic
 from .forms import NumForm
 from random import randint
 
+
 # Создаем класс экстрасенса
 class Extrasence:
-    def __init__(self, name):
+    def __init__(self, request, name):  # Подгружаем данные из куки
         self.name = name
-        self.score = 0
-        self.numbers = []
+        if f'{name}_score' in request.session:
+            self.score = request.session[f'{name}_score']
+        else:
+            self.score = 0
+        if f'{name}_numbers' in request.session:
+            self.numbers = request.session[f'{name}_numbers']
+        else:
+            self.numbers = []
+
         self.answer = 0
+        self.request = request
+
+    def exta_answer(self):  # Формируем ответ экстрасеса
+        self.answer = randint(10, 99)
+        self.numbers.append(self.answer)
+
+    def validate(self, number):  # Проверяем ответ экстрасеса и устанавливаем новый счет
+        self.answer = self.numbers[len(self.numbers) - 1]
+        if self.answer == number:
+            self.score += 1
+
+        else:
+            self.score -= 1
+
+    def __del__(self):  # Записываем данные в куки
+        self.request.session[f'{self.name}_score'] = self.score
+        self.request.session[f'{self.name}_numbers'] = self.numbers
+
+# Создаем класс игрока
+class Player:
+    def __init__(self, request):  # Подгружаем данные из куки
+        if 'all_numbers' in request.session:
+            self.all_numbers = request.session['all_numbers']
+        else:
+            self.all_numbers = []
+        self.request = request
+
+    def __del__(self):
+        self.request.session['all_numbers'] = self.all_numbers
 
 
-def index(request):
-    #  задаем режим хранения данных в куки до закрытия браузера
-    request.session.set_expiry(0)
-    # определяем два экстрасенса
-    vasily = Extrasence('vasily')
-    petr = Extrasence('petr')
-    # Обновляем информацию из куки
-    if 'vasily_score' in request.session:
-        vasily.score = request.session['vasily_score']
+class Index(generic.TemplateView, generic.CreateView):
+    template_name = 'play/play.html'
 
-    if 'petr_score' in request.session:
-        petr.score = request.session['petr_score']
+    def post(self, request, *args, **kwargs):
+        vasily = Extrasence(request, 'vasily')
+        petr = Extrasence(request, 'petr')
+        player = Player(request)
+        form = NumForm(request.POST)
 
-    if 'vasily_numbers' in request.session:
-        vasily.numbers = request.session['vasily_numbers']
-
-    if 'petr_numbers' in request.session:
-        petr.numbers = request.session['petr_numbers']
-
-    if 'all_numbers' in request.session:
-        all_numbers = request.session['all_numbers']
-    else:
-        all_numbers = []
-    # создаем страницу
-    return render(request, 'play/play.html',
-                  {'all_numbers': all_numbers, 'vasily': vasily, 'petr': petr})
-
-
-def test(request):
-    # повторяем инициализацию экстрасенсов
-    vasily = Extrasence('vasily')
-    petr = Extrasence('petr')
-    # Обновляем данные из куки
-    if 'vasily_score' in request.session:
-        vasily.score = request.session['vasily_score']
-
-    if 'petr_score' in request.session:
-        petr.score = request.session['petr_score']
-
-    if 'answer_vasily' in request.session:
-        vasily.answer = request.session['answer_vasily']
-
-    if 'answer_petr' in request.session:
-        petr.answer = request.session['answer_petr']
-
-    if 'all_numbers' in request.session:
-        all_numbers = request.session['all_numbers']
-    else:
-        all_numbers = []
-
-    if 'vasily_numbers' in request.session:
-        vasily.numbers = request.session['vasily_numbers']
-
-    if 'petr_numbers' in request.session:
-        petr.numbers = request.session['petr_numbers']
-    # обрабатываем действие на нажаьтие кнопки
-    if request.method == 'POST':
-        form = NumForm(request.POST)  # подкрепляем форму
         if form.is_valid():
             number = form.cleaned_data['number']  # находим число из формы
-            all_numbers.append(number)
-            # заносим данные в куки
-            request.session['all_numbers'] = all_numbers
-            # Проверка ответов экстрасенксов
-            if vasily.answer == number:
-                vasily.score += 1
-                vasily.numbers.append(number)
-            else:
-                vasily.score -= 1
+            player.all_numbers.append(number)
+            vasily.validate(number)  # Проверка ответов экстрасенксов
+            petr.validate(number)
 
-            if petr.answer == number:
-                petr.score += 1
-                petr.numbers.append(number)
-            else:
-                petr.score -= 1
-            # добавляем данные в куки
-            request.session['vasily_score'] = vasily.score
-            request.session['petr_score'] = petr.score
-            request.session['vasily_numbers'] = vasily.numbers
-            request.session['petr_numbers'] = petr.numbers
-            # редирект на главную страницу
-            return HttpResponseRedirect('/play/')
+        context = {'form': form, 'vasily': vasily, 'petr': petr, 'player': player}
 
-    else:
-        return HttpResponseRedirect('/play/answer/')
+        vasily.__del__()
+        petr.__del__()
+        player.__del__()
+        return self.render_to_response(context)
+
+    def get(self, request, *args, **kwargs):
+        request.session.set_expiry(0)  # задаем режим хранения данных в куки до закрытия браузера
+
+        vasily = Extrasence(request, 'vasily')
+        petr = Extrasence(request, 'petr')
+        player = Player(request)
+
+        context = {'vasily': vasily, 'petr': petr, 'player': player}
+
+        vasily.__del__()
+        petr.__del__()
+        player.__del__()
+        return self.render_to_response(context)
 
 
-def answer(request):
-    # повторно инициализируем экстрасенсов
-    vasily = Extrasence('vasily')
-    petr = Extrasence('petr')
-    # придумываем рандомный ответ
-    vasily.answer = randint(10, 99)
-    petr.answer = randint(10, 99)
-    # вносим данные в куки
-    request.session['answer_vasily'] = vasily.answer
-    request.session['answer_petr'] = petr.answer
-    # обновляем данные из куки
-    if 'vasily_score' in request.session:
-        vasily.score = request.session['vasily_score']
+class Answer(generic.CreateView):
+    template_name = 'play/answer.html'
 
-    if 'petr_score' in request.session:
-        petr.score = request.session['petr_score']
+    def post(self, request, *args, **kwargs):
+        vasily = Extrasence(request, 'vasily')
+        petr = Extrasence(request, 'petr')
+        player = Player(request)
+        form = NumForm()
+        vasily.exta_answer()
+        petr.exta_answer()
 
-    if 'all_numbers' in request.session:
-        all_numbers = request.session['all_numbers']
-    else:
-        all_numbers = []
+        context = {'form': form, 'vasily': vasily, 'petr': petr, 'player': player}
 
-    if 'vasily_numbers' in request.session:
-        vasily.numbers = request.session['vasily_numbers']
-
-    if 'petr_numbers' in request.session:
-        petr.numbers = request.session['petr_numbers']
-
-    form = NumForm()
-    # создаем страницу
-    return render(request, 'play/answer.html',
-                  {'form': form, 'all_numbers': all_numbers, 'vasily': vasily, 'petr': petr})
+        vasily.__del__()
+        petr.__del__()
+        player.__del__()
+        return self.render_to_response(context)
